@@ -1,0 +1,6 @@
+{
+  "name": "Stop Masturbate",
+  "description": "A clean, private self-improvement streak tracker to overcome compulsive habits, build unbreakable discipline, and track milestones.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
