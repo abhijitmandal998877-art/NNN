@@ -60,6 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.DateTimePickerModal
+import com.example.ui.components.WidgetAndNotificationSection
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.RoseSoft
 import com.example.ui.viewmodel.LiveStreakUiState
@@ -186,6 +187,15 @@ fun SettingsScreen(
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Live Widget & Notification Systems Section
+        SectionHeader(title = "HOME SCREEN WIDGET & NOTIFICATIONS")
+        WidgetAndNotificationSection(
+            viewModel = viewModel,
+            uiState = uiState
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
 

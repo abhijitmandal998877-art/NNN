@@ -12,7 +12,10 @@ data class StreakSettings(
     val startTimeMillis: Long,
     val bestStreakMillis: Long,
     val firstStartedMillis: Long,
-    val themeMode: String = "DARK" // DARK, LIGHT, SYSTEM
+    val themeMode: String = "DARK", // DARK, LIGHT, SYSTEM
+    val dailyRemindersEnabled: Boolean = true,
+    val eveningGuardEnabled: Boolean = true,
+    val milestoneAlertsEnabled: Boolean = true
 )
 
 data class Milestone(

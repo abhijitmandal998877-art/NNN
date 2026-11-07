@@ -9,6 +9,8 @@ import com.example.data.model.Milestone
 import com.example.data.model.RelapseEvent
 import com.example.data.model.StreakSettings
 import com.example.data.repository.StreakRepository
+import com.example.notification.NotificationHelper
+import com.example.widget.StreakWidgetUpdater
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,6 +37,9 @@ data class LiveStreakUiState(
     val isPledgedToday: Boolean = false,
     val activeQuote: DailyQuote = MotivationProvider.QUOTES[0],
     val themeMode: String = "DARK",
+    val dailyRemindersEnabled: Boolean = true,
+    val eveningGuardEnabled: Boolean = true,
+    val milestoneAlertsEnabled: Boolean = true,
     val supportiveMessage: String? = null
 )
 
@@ -50,22 +55,21 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
     private val _supportiveMessage = MutableStateFlow<String?>(null)
     val supportiveMessage: StateFlow<String?> = _supportiveMessage.asStateFlow()
 
+    private val _openUrgeShieldEvent = MutableStateFlow(false)
+    val openUrgeShieldEvent: StateFlow<Boolean> = _openUrgeShieldEvent.asStateFlow()
+
+    fun triggerUrgeShieldFromExternal() {
+        _openUrgeShieldEvent.value = true
+    }
+
+    fun consumeUrgeShieldEvent() {
+        _openUrgeShieldEvent.value = false
+    }
+
     val settings: StateFlow<StreakSettings> = repository.settingsFlow
     val relapses: StateFlow<List<RelapseEvent>> = repository.relapsesFlow
     val pledges: StateFlow<Set<String>> = repository.pledgesFlow
 
-    init {
-        // Live second ticker
-        viewModelScope.launch {
-            while (true) {
-                _currentTime.value = System.currentTimeMillis()
-                delay(1000)
-            }
-        }
-        // Initialize daily quote based on epoch day
-        val epochDay = System.currentTimeMillis() / (1000 * 60 * 60 * 24)
-        _quoteIndex.value = (Math.abs(epochDay) % MotivationProvider.QUOTES.size).toInt()
-    }
 
     private val streakCoreFlow = combine(
         settings,
@@ -120,8 +124,32 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
             daysToNextMilestone = daysToNext,
             nextMilestoneTargetDays = nextTargetDays,
             isPledgedToday = isPledged,
-            themeMode = settingsVal.themeMode
+            themeMode = settingsVal.themeMode,
+            dailyRemindersEnabled = settingsVal.dailyRemindersEnabled,
+            eveningGuardEnabled = settingsVal.eveningGuardEnabled,
+            milestoneAlertsEnabled = settingsVal.milestoneAlertsEnabled
         )
+    }
+
+    init {
+        // Live second ticker
+        viewModelScope.launch {
+            while (true) {
+                _currentTime.value = System.currentTimeMillis()
+                delay(1000)
+            }
+        }
+        // Initialize daily quote based on epoch day
+        val epochDay = System.currentTimeMillis() / (1000 * 60 * 60 * 24)
+        _quoteIndex.value = (Math.abs(epochDay) % MotivationProvider.QUOTES.size).toInt()
+
+        // Initialize notification channels and schedule if enabled
+        val app = getApplication<Application>()
+        NotificationHelper.createNotificationChannels(app)
+        if (repository.settingsFlow.value.dailyRemindersEnabled) {
+            NotificationHelper.scheduleDailyReminders(app)
+        }
+        StreakWidgetUpdater.updateAllWidgets(app)
     }
 
     val uiState: StateFlow<LiveStreakUiState> = combine(
@@ -151,6 +179,7 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
             "A setback is just data, not defeat. Be gentle with yourself. Identify what triggered you, wash your face, and start your clean streak right now."
         }
         _supportiveMessage.value = message
+        StreakWidgetUpdater.updateAllWidgets(getApplication<Application>())
     }
 
     fun dismissSupportiveMessage() {
@@ -159,14 +188,41 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
 
     fun updateStartTime(newStartTime: Long) {
         repository.updateStartTime(newStartTime)
+        StreakWidgetUpdater.updateAllWidgets(getApplication<Application>())
     }
 
     fun setThemeMode(mode: String) {
         repository.updateThemeMode(mode)
     }
 
+    fun updateNotificationSettings(daily: Boolean, evening: Boolean, milestone: Boolean) {
+        repository.updateNotificationSettings(daily, evening, milestone)
+        val app = getApplication<Application>()
+        if (daily || evening) {
+            NotificationHelper.scheduleDailyReminders(app)
+        } else {
+            NotificationHelper.cancelDailyReminders(app)
+        }
+    }
+
+    fun sendTestNotification() {
+        NotificationHelper.sendTestNotification(getApplication<Application>())
+    }
+
+    fun pinHomeWidget(): Boolean {
+        return StreakWidgetUpdater.requestPinWidget(getApplication<Application>())
+    }
+
+    fun isWidgetPinSupported(): Boolean {
+        return StreakWidgetUpdater.isPinSupported(getApplication<Application>())
+    }
+
     fun recordPledge(): Boolean {
-        return repository.recordPledge()
+        val success = repository.recordPledge()
+        if (success) {
+            StreakWidgetUpdater.updateAllWidgets(getApplication<Application>())
+        }
+        return success
     }
 
     fun nextQuote() {
@@ -176,6 +232,7 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
     fun resetAllData() {
         repository.resetAllData()
         _supportiveMessage.value = null
+        StreakWidgetUpdater.updateAllWidgets(getApplication<Application>())
     }
 
     fun exportJson(): String {
@@ -186,6 +243,7 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
         val result = repository.importFromJson(json)
         if (result.isSuccess) {
             _supportiveMessage.value = "Progress imported successfully!"
+            StreakWidgetUpdater.updateAllWidgets(getApplication<Application>())
         }
         return result
     }

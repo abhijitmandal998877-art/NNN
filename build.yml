@@ -45,11 +45,31 @@ jobs:
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           fi
 
+          # Prepare upload keystore with identical signature for release builds
+          if [ ! -f my-upload-key.jks ]; then
+            cp debug.keystore my-upload-key.jks
+            keytool -changealias -alias androiddebugkey -destalias upload -keystore my-upload-key.jks -storepass android
+          fi
+
           # Ensure gradlew has execute permissions
           chmod +x gradlew
 
+      - name: Build Signed Release APK
+        env:
+          STORE_PASSWORD: android
+          KEY_PASSWORD: android
+        run: ./gradlew assembleRelease --stacktrace
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
+
+      - name: Upload Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StopMasturbate-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4

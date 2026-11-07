@@ -25,6 +25,9 @@ class StreakRepository(context: Context) {
         private const val KEY_THEME_MODE = "key_theme_mode"
         private const val KEY_RELAPSES_JSON = "key_relapses_json"
         private const val KEY_PLEDGES_JSON = "key_pledges_json"
+        private const val KEY_DAILY_REMINDERS = "key_daily_reminders"
+        private const val KEY_EVENING_GUARD = "key_evening_guard"
+        private const val KEY_MILESTONE_ALERTS = "key_milestone_alerts"
     }
 
     private val _settingsFlow = MutableStateFlow(loadSettings())
@@ -42,6 +45,9 @@ class StreakRepository(context: Context) {
         var firstStarted = prefs.getLong(KEY_FIRST_STARTED, -1L)
         val bestStreak = prefs.getLong(KEY_BEST_STREAK, 0L)
         val themeMode = prefs.getString(KEY_THEME_MODE, "DARK") ?: "DARK"
+        val dailyReminders = prefs.getBoolean(KEY_DAILY_REMINDERS, true)
+        val eveningGuard = prefs.getBoolean(KEY_EVENING_GUARD, true)
+        val milestoneAlerts = prefs.getBoolean(KEY_MILESTONE_ALERTS, true)
 
         if (startTime <= 0L) {
             startTime = now
@@ -56,7 +62,10 @@ class StreakRepository(context: Context) {
             startTimeMillis = startTime,
             bestStreakMillis = bestStreak,
             firstStartedMillis = firstStarted,
-            themeMode = themeMode
+            themeMode = themeMode,
+            dailyRemindersEnabled = dailyReminders,
+            eveningGuardEnabled = eveningGuard,
+            milestoneAlertsEnabled = milestoneAlerts
         )
     }
 
@@ -162,6 +171,20 @@ class StreakRepository(context: Context) {
     fun updateThemeMode(themeMode: String) {
         val updated = _settingsFlow.value.copy(themeMode = themeMode)
         prefs.edit().putString(KEY_THEME_MODE, themeMode).apply()
+        _settingsFlow.value = updated
+    }
+
+    fun updateNotificationSettings(daily: Boolean, evening: Boolean, milestone: Boolean) {
+        val updated = _settingsFlow.value.copy(
+            dailyRemindersEnabled = daily,
+            eveningGuardEnabled = evening,
+            milestoneAlertsEnabled = milestone
+        )
+        prefs.edit()
+            .putBoolean(KEY_DAILY_REMINDERS, daily)
+            .putBoolean(KEY_EVENING_GUARD, evening)
+            .putBoolean(KEY_MILESTONE_ALERTS, milestone)
+            .apply()
         _settingsFlow.value = updated
     }
 
