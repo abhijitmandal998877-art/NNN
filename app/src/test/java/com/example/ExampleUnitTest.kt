@@ -67,4 +67,37 @@ class ExampleUnitTest {
             assertTrue(phase.mentalShift.isNotBlank())
         }
     }
+
+    @Test
+    fun `verify daily habit status progress computation`() {
+        val habitEmpty = com.example.data.model.DailyHabitStatus(dateString = "2026-11-08")
+        assertEquals(0, habitEmpty.completedCount)
+        assertEquals(5, habitEmpty.totalCount)
+        assertEquals(false, habitEmpty.isAllCompleted)
+
+        val habitFull = habitEmpty.copy(
+            coldShower = true,
+            workout = true,
+            meditation = true,
+            reading = true,
+            screenFreeBed = true
+        )
+        assertEquals(5, habitFull.completedCount)
+        assertEquals(true, habitFull.isAllCompleted)
+    }
+
+    @Test
+    fun `verify urge event data creation`() {
+        val urge = com.example.data.model.UrgeEvent(
+            id = "test-1",
+            timestampMillis = System.currentTimeMillis(),
+            intensity = 8,
+            trigger = "Boredom",
+            techniqueUsed = "20 Push-ups / Workout",
+            note = "Strong impulse dissipated after exercise"
+        )
+        assertEquals(8, urge.intensity)
+        assertEquals("Boredom", urge.trigger)
+        assertEquals("20 Push-ups / Workout", urge.techniqueUsed)
+    }
 }

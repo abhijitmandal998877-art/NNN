@@ -2,8 +2,11 @@ package com.example.data.repository
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.data.model.DailyHabitStatus
+import com.example.data.model.RecoveryJournalEntry
 import com.example.data.model.RelapseEvent
 import com.example.data.model.StreakSettings
+import com.example.data.model.UrgeEvent
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +28,9 @@ class StreakRepository(context: Context) {
         private const val KEY_THEME_MODE = "key_theme_mode"
         private const val KEY_RELAPSES_JSON = "key_relapses_json"
         private const val KEY_PLEDGES_JSON = "key_pledges_json"
+        private const val KEY_URGES_JSON = "key_urges_json"
+        private const val KEY_HABITS_JSON = "key_habits_json"
+        private const val KEY_JOURNAL_JSON = "key_journal_json"
         private const val KEY_DAILY_REMINDERS = "key_daily_reminders"
         private const val KEY_EVENING_GUARD = "key_evening_guard"
         private const val KEY_MILESTONE_ALERTS = "key_milestone_alerts"
@@ -38,6 +44,15 @@ class StreakRepository(context: Context) {
 
     private val _pledgesFlow = MutableStateFlow(loadPledges())
     val pledgesFlow: StateFlow<Set<String>> = _pledgesFlow.asStateFlow()
+
+    private val _urgesFlow = MutableStateFlow(loadUrges())
+    val urgesFlow: StateFlow<List<UrgeEvent>> = _urgesFlow.asStateFlow()
+
+    private val _habitsFlow = MutableStateFlow(loadHabits())
+    val habitsFlow: StateFlow<Map<String, DailyHabitStatus>> = _habitsFlow.asStateFlow()
+
+    private val _journalFlow = MutableStateFlow(loadJournal())
+    val journalFlow: StateFlow<List<RecoveryJournalEntry>> = _journalFlow.asStateFlow()
 
     private fun loadSettings(): StreakSettings {
         val now = System.currentTimeMillis()
@@ -86,9 +101,7 @@ class StreakRepository(context: Context) {
                     )
                 )
             }
-        } catch (_: Exception) {
-            // Ignore corrupted JSON
-        }
+        } catch (_: Exception) {}
         return list.sortedByDescending { it.timestampMillis }
     }
 
@@ -102,6 +115,69 @@ class StreakRepository(context: Context) {
             }
         } catch (_: Exception) {}
         return set
+    }
+
+    private fun loadUrges(): List<UrgeEvent> {
+        val jsonStr = prefs.getString(KEY_URGES_JSON, null) ?: return emptyList()
+        val list = mutableListOf<UrgeEvent>()
+        try {
+            val arr = JSONArray(jsonStr)
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                list.add(
+                    UrgeEvent(
+                        id = obj.optString("id", UUID.randomUUID().toString()),
+                        timestampMillis = obj.optLong("timestampMillis", System.currentTimeMillis()),
+                        intensity = obj.optInt("intensity", 5),
+                        trigger = obj.optString("trigger", "Not specified"),
+                        techniqueUsed = obj.optString("techniqueUsed", "Urge Surfing"),
+                        note = obj.optString("note", "")
+                    )
+                )
+            }
+        } catch (_: Exception) {}
+        return list.sortedByDescending { it.timestampMillis }
+    }
+
+    private fun loadHabits(): Map<String, DailyHabitStatus> {
+        val jsonStr = prefs.getString(KEY_HABITS_JSON, null) ?: return emptyMap()
+        val map = mutableMapOf<String, DailyHabitStatus>()
+        try {
+            val arr = JSONArray(jsonStr)
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                val dateStr = obj.getString("dateString")
+                map[dateStr] = DailyHabitStatus(
+                    dateString = dateStr,
+                    coldShower = obj.optBoolean("coldShower", false),
+                    workout = obj.optBoolean("workout", false),
+                    meditation = obj.optBoolean("meditation", false),
+                    reading = obj.optBoolean("reading", false),
+                    screenFreeBed = obj.optBoolean("screenFreeBed", false)
+                )
+            }
+        } catch (_: Exception) {}
+        return map
+    }
+
+    private fun loadJournal(): List<RecoveryJournalEntry> {
+        val jsonStr = prefs.getString(KEY_JOURNAL_JSON, null) ?: return emptyList()
+        val list = mutableListOf<RecoveryJournalEntry>()
+        try {
+            val arr = JSONArray(jsonStr)
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                list.add(
+                    RecoveryJournalEntry(
+                        id = obj.optString("id", UUID.randomUUID().toString()),
+                        timestampMillis = obj.optLong("timestampMillis", System.currentTimeMillis()),
+                        mood = obj.optString("mood", "Strong 💪"),
+                        note = obj.optString("note", "")
+                    )
+                )
+            }
+        } catch (_: Exception) {}
+        return list.sortedByDescending { it.timestampMillis }
     }
 
     private fun saveRelapses(list: List<RelapseEvent>) {
@@ -118,6 +194,55 @@ class StreakRepository(context: Context) {
         }
         prefs.edit().putString(KEY_RELAPSES_JSON, arr.toString()).apply()
         _relapsesFlow.value = list.sortedByDescending { it.timestampMillis }
+    }
+
+    private fun saveUrges(list: List<UrgeEvent>) {
+        val arr = JSONArray()
+        list.forEach { event ->
+            val obj = JSONObject().apply {
+                put("id", event.id)
+                put("timestampMillis", event.timestampMillis)
+                put("intensity", event.intensity)
+                put("trigger", event.trigger)
+                put("techniqueUsed", event.techniqueUsed)
+                put("note", event.note)
+            }
+            arr.put(obj)
+        }
+        prefs.edit().putString(KEY_URGES_JSON, arr.toString()).apply()
+        _urgesFlow.value = list.sortedByDescending { it.timestampMillis }
+    }
+
+    private fun saveHabits(map: Map<String, DailyHabitStatus>) {
+        val arr = JSONArray()
+        map.values.forEach { habit ->
+            val obj = JSONObject().apply {
+                put("dateString", habit.dateString)
+                put("coldShower", habit.coldShower)
+                put("workout", habit.workout)
+                put("meditation", habit.meditation)
+                put("reading", habit.reading)
+                put("screenFreeBed", habit.screenFreeBed)
+            }
+            arr.put(obj)
+        }
+        prefs.edit().putString(KEY_HABITS_JSON, arr.toString()).apply()
+        _habitsFlow.value = map
+    }
+
+    private fun saveJournal(list: List<RecoveryJournalEntry>) {
+        val arr = JSONArray()
+        list.forEach { entry ->
+            val obj = JSONObject().apply {
+                put("id", entry.id)
+                put("timestampMillis", entry.timestampMillis)
+                put("mood", entry.mood)
+                put("note", entry.note)
+            }
+            arr.put(obj)
+        }
+        prefs.edit().putString(KEY_JOURNAL_JSON, arr.toString()).apply()
+        _journalFlow.value = list.sortedByDescending { it.timestampMillis }
     }
 
     fun updateStartTime(newStartTime: Long) {
@@ -166,6 +291,49 @@ class StreakRepository(context: Context) {
         _settingsFlow.value = updatedSettings
 
         return completedStreakDuration
+    }
+
+    fun recordUrgeConquered(intensity: Int, trigger: String, technique: String, note: String): UrgeEvent {
+        val now = System.currentTimeMillis()
+        val urge = UrgeEvent(
+            id = UUID.randomUUID().toString(),
+            timestampMillis = now,
+            intensity = intensity.coerceIn(1, 10),
+            trigger = trigger.ifBlank { "Urge Conquered" },
+            techniqueUsed = technique.ifBlank { "Urge Surfing" },
+            note = note.trim()
+        )
+        val updated = listOf(urge) + _urgesFlow.value
+        saveUrges(updated)
+        return urge
+    }
+
+    fun toggleHabit(dateString: String, habitType: String) {
+        val map = _habitsFlow.value.toMutableMap()
+        val current = map[dateString] ?: DailyHabitStatus(dateString = dateString)
+        val updated = when (habitType) {
+            "coldShower" -> current.copy(coldShower = !current.coldShower)
+            "workout" -> current.copy(workout = !current.workout)
+            "meditation" -> current.copy(meditation = !current.meditation)
+            "reading" -> current.copy(reading = !current.reading)
+            "screenFreeBed" -> current.copy(screenFreeBed = !current.screenFreeBed)
+            else -> current
+        }
+        map[dateString] = updated
+        saveHabits(map)
+    }
+
+    fun addJournalEntry(mood: String, note: String): RecoveryJournalEntry {
+        val now = System.currentTimeMillis()
+        val entry = RecoveryJournalEntry(
+            id = UUID.randomUUID().toString(),
+            timestampMillis = now,
+            mood = mood.ifBlank { "Strong 💪" },
+            note = note.trim()
+        )
+        val updated = listOf(entry) + _journalFlow.value
+        saveJournal(updated)
+        return entry
     }
 
     fun updateThemeMode(themeMode: String) {
@@ -220,16 +388,22 @@ class StreakRepository(context: Context) {
         )
         _relapsesFlow.value = emptyList()
         _pledgesFlow.value = emptySet()
+        _urgesFlow.value = emptyList()
+        _habitsFlow.value = emptyMap()
+        _journalFlow.value = emptyList()
     }
 
     fun exportToJson(): String {
         val settings = _settingsFlow.value
         val relapses = _relapsesFlow.value
         val pledges = _pledgesFlow.value
+        val urges = _urgesFlow.value
+        val habits = _habitsFlow.value
+        val journal = _journalFlow.value
 
         val root = JSONObject()
         root.put("app", "Stop Masturbate")
-        root.put("version", 1)
+        root.put("version", 2)
         root.put("exportedAt", System.currentTimeMillis())
         root.put("startTimeMillis", settings.startTimeMillis)
         root.put("bestStreakMillis", settings.bestStreakMillis)
@@ -252,6 +426,46 @@ class StreakRepository(context: Context) {
         val pledgesArr = JSONArray()
         pledges.forEach { pledgesArr.put(it) }
         root.put("pledges", pledgesArr)
+
+        val urgesArr = JSONArray()
+        urges.forEach {
+            val item = JSONObject().apply {
+                put("id", it.id)
+                put("timestampMillis", it.timestampMillis)
+                put("intensity", it.intensity)
+                put("trigger", it.trigger)
+                put("techniqueUsed", it.techniqueUsed)
+                put("note", it.note)
+            }
+            urgesArr.put(item)
+        }
+        root.put("urges", urgesArr)
+
+        val habitsArr = JSONArray()
+        habits.values.forEach {
+            val item = JSONObject().apply {
+                put("dateString", it.dateString)
+                put("coldShower", it.coldShower)
+                put("workout", it.workout)
+                put("meditation", it.meditation)
+                put("reading", it.reading)
+                put("screenFreeBed", it.screenFreeBed)
+            }
+            habitsArr.put(item)
+        }
+        root.put("habits", habitsArr)
+
+        val journalArr = JSONArray()
+        journal.forEach {
+            val item = JSONObject().apply {
+                put("id", it.id)
+                put("timestampMillis", it.timestampMillis)
+                put("mood", it.mood)
+                put("note", it.note)
+            }
+            journalArr.put(item)
+        }
+        root.put("journal", journalArr)
 
         return root.toString(2)
     }
@@ -289,6 +503,57 @@ class StreakRepository(context: Context) {
                 }
             }
 
+            val urgesList = mutableListOf<UrgeEvent>()
+            if (root.has("urges")) {
+                val urgesArr = root.getJSONArray("urges")
+                for (i in 0 until urgesArr.length()) {
+                    val obj = urgesArr.getJSONObject(i)
+                    urgesList.add(
+                        UrgeEvent(
+                            id = obj.optString("id", UUID.randomUUID().toString()),
+                            timestampMillis = obj.optLong("timestampMillis", System.currentTimeMillis()),
+                            intensity = obj.optInt("intensity", 5),
+                            trigger = obj.optString("trigger", "Imported"),
+                            techniqueUsed = obj.optString("techniqueUsed", "Urge Surfing"),
+                            note = obj.optString("note", "")
+                        )
+                    )
+                }
+            }
+
+            val habitsMap = mutableMapOf<String, DailyHabitStatus>()
+            if (root.has("habits")) {
+                val habitsArr = root.getJSONArray("habits")
+                for (i in 0 until habitsArr.length()) {
+                    val obj = habitsArr.getJSONObject(i)
+                    val dateStr = obj.getString("dateString")
+                    habitsMap[dateStr] = DailyHabitStatus(
+                        dateString = dateStr,
+                        coldShower = obj.optBoolean("coldShower", false),
+                        workout = obj.optBoolean("workout", false),
+                        meditation = obj.optBoolean("meditation", false),
+                        reading = obj.optBoolean("reading", false),
+                        screenFreeBed = obj.optBoolean("screenFreeBed", false)
+                    )
+                }
+            }
+
+            val journalList = mutableListOf<RecoveryJournalEntry>()
+            if (root.has("journal")) {
+                val journalArr = root.getJSONArray("journal")
+                for (i in 0 until journalArr.length()) {
+                    val obj = journalArr.getJSONObject(i)
+                    journalList.add(
+                        RecoveryJournalEntry(
+                            id = obj.optString("id", UUID.randomUUID().toString()),
+                            timestampMillis = obj.optLong("timestampMillis", System.currentTimeMillis()),
+                            mood = obj.optString("mood", "Strong 💪"),
+                            note = obj.optString("note", "")
+                        )
+                    )
+                }
+            }
+
             // Save to prefs
             prefs.edit()
                 .putLong(KEY_START_TIME, startTime)
@@ -298,6 +563,9 @@ class StreakRepository(context: Context) {
                 .apply()
 
             saveRelapses(relapsesList)
+            saveUrges(urgesList)
+            saveHabits(habitsMap)
+            saveJournal(journalList)
 
             val pledgesArr = JSONArray()
             pledgesSet.forEach { pledgesArr.put(it) }

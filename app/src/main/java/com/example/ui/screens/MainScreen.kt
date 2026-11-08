@@ -142,7 +142,10 @@ fun MainScreen(viewModel: StreakViewModel) {
                             label = "tab_content_tablet"
                         ) { targetTab ->
                             when (targetTab) {
-                                AppTab.HOME -> HomeScreen(viewModel = viewModel, uiState = uiState)
+                                AppTab.HOME -> HomeScreen(
+                                    viewModel = viewModel,
+                                    uiState = uiState
+                                )
                                 AppTab.PROGRESS -> ProgressScreen(viewModel = viewModel, uiState = uiState)
                                 AppTab.MOTIVATION -> MotivationScreen(viewModel = viewModel, uiState = uiState)
                                 AppTab.SETTINGS -> SettingsScreen(viewModel = viewModel, uiState = uiState)
@@ -202,7 +205,10 @@ fun MainScreen(viewModel: StreakViewModel) {
                             label = "tab_content_mobile"
                         ) { targetTab ->
                             when (targetTab) {
-                                AppTab.HOME -> HomeScreen(viewModel = viewModel, uiState = uiState)
+                                AppTab.HOME -> HomeScreen(
+                                    viewModel = viewModel,
+                                    uiState = uiState
+                                )
                                 AppTab.PROGRESS -> ProgressScreen(viewModel = viewModel, uiState = uiState)
                                 AppTab.MOTIVATION -> MotivationScreen(viewModel = viewModel, uiState = uiState)
                                 AppTab.SETTINGS -> SettingsScreen(viewModel = viewModel, uiState = uiState)

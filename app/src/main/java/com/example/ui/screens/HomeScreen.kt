@@ -1,8 +1,8 @@
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,20 +18,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Widgets
 import androidx.compose.material.icons.outlined.Shield
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -53,14 +50,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.CircularStreakProgress
+import com.example.ui.components.DailyHabitTrackerCard
 import com.example.ui.components.RelapseDialog
+import com.example.ui.components.UrgeConqueredDialog
 import com.example.ui.components.UrgeSurfingDialog
+import com.example.ui.theme.EmeraldLight
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldAmber
 import com.example.ui.theme.RoseSoft
@@ -75,8 +75,11 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val habitsMap by viewModel.habitsMap.collectAsState()
+
     var showRelapseDialog by remember { mutableStateOf(false) }
     var showUrgeShield by remember { mutableStateOf(false) }
+    var showUrgeConqueredDialog by remember { mutableStateOf(false) }
 
     val openUrgeShieldEvent by viewModel.openUrgeShieldEvent.collectAsState()
     LaunchedEffect(openUrgeShieldEvent) {
@@ -203,14 +206,14 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Stats Row (Best Streak, Total Days Tracked, Total Relapses)
+        // 4-Pillar Stats Grid (Best Record, Days Tracked, Urges Defeated, Relapses)
+        val bestDays = TimeUnit.MILLISECONDS.toDays(uiState.bestStreakDurationMillis)
+        val bestHours = TimeUnit.MILLISECONDS.toHours(uiState.bestStreakDurationMillis) % 24
+
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            val bestDays = TimeUnit.MILLISECONDS.toDays(uiState.bestStreakDurationMillis)
-            val bestHours = TimeUnit.MILLISECONDS.toHours(uiState.bestStreakDurationMillis) % 24
-
             StatCard(
                 title = "BEST RECORD",
                 value = "${bestDays}d ${bestHours}h",
@@ -224,6 +227,21 @@ fun HomeScreen(
                 value = "${uiState.totalDaysTracked} days",
                 icon = Icons.Outlined.Shield,
                 iconTint = EmeraldPrimary,
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            StatCard(
+                title = "URGES DEFEATED",
+                value = "${uiState.urgesConqueredCount} Won 💪",
+                icon = Icons.Default.FitnessCenter,
+                iconTint = EmeraldLight,
                 modifier = Modifier.weight(1f)
             )
 
@@ -300,30 +318,52 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // Primary Action Buttons
+        // Action Buttons: "I Beat an Urge!", "Urge Shield", "I Relapsed"
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Emergency Urge Shield / Panic Button
+            // "I Beat an Urge!" Victory Button
             Button(
-                onClick = { showUrgeShield = true },
+                onClick = { showUrgeConqueredDialog = true },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = EmeraldPrimary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
+                    .testTag("beat_urge_button")
+            ) {
+                Icon(Icons.Default.FitnessCenter, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "I Beat an Urge! 💪",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
+
+            // Emergency Urge Shield / Panic Button
+            Button(
+                onClick = { showUrgeShield = true },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
                     .testTag("panic_urge_button")
             ) {
                 Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Urge Shield / Panic Button",
+                    text = "Urge Shield (Emergency Calm)",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
                 )
@@ -338,7 +378,7 @@ fun HomeScreen(
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .height(48.dp)
                     .testTag("relapse_button")
             ) {
                 Icon(Icons.Default.Warning, contentDescription = null, tint = RoseSoft, modifier = Modifier.size(18.dp))
@@ -346,11 +386,21 @@ fun HomeScreen(
                 Text(
                     text = "I Relapsed",
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     color = RoseSoft
                 )
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Daily Habit Replacement Tracker Card
+        DailyHabitTrackerCard(
+            habitsMap = habitsMap,
+            onToggleHabit = { dateStr, habitType ->
+                viewModel.toggleHabit(dateStr, habitType)
+            }
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -462,6 +512,18 @@ fun HomeScreen(
             onDismiss = { showUrgeShield = false },
             onSuccess = {
                 showUrgeShield = false
+                showUrgeConqueredDialog = true
+            }
+        )
+    }
+
+    if (showUrgeConqueredDialog) {
+        UrgeConqueredDialog(
+            onDismiss = { showUrgeConqueredDialog = false },
+            onConfirm = { intensity, trigger, technique, note ->
+                viewModel.recordUrgeConquered(intensity, trigger, technique, note)
+                showUrgeConqueredDialog = false
+                Toast.makeText(context, "Victory Logged! Prefrontal control +1 💪", Toast.LENGTH_SHORT).show()
             }
         )
     }

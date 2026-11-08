@@ -24,15 +24,16 @@ import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,7 +54,10 @@ import androidx.compose.ui.unit.sp
 import com.example.data.MotivationProvider
 import com.example.data.model.Milestone
 import com.example.data.model.RelapseEvent
+import com.example.data.model.UrgeEvent
+import com.example.ui.components.BrainRecoveryTimelineCard
 import com.example.ui.components.DateTimePickerModal
+import com.example.ui.components.StreakCalendarView
 import com.example.ui.theme.EmeraldLight
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.GoldAmber
@@ -73,6 +77,8 @@ fun ProgressScreen(
     modifier: Modifier = Modifier
 ) {
     val relapses by viewModel.relapses.collectAsState()
+    val urges by viewModel.urges.collectAsState()
+    val habitsMap by viewModel.habitsMap.collectAsState()
     val settings by viewModel.settings.collectAsState()
 
     var showDatePicker by remember { mutableStateOf(false) }
@@ -94,7 +100,7 @@ fun ProgressScreen(
             color = MaterialTheme.colorScheme.onBackground
         )
         Text(
-            text = "Milestones & Habit Analytics",
+            text = "Analytics, Calendar, Urge Victories & Neuroplasticity",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -161,6 +167,69 @@ fun ProgressScreen(
                 }
             }
         }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Performance & Consistency Overview Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "RECOVERY METRICS",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 1.sp
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    MetricMiniBlock(
+                        title = "Clean Success",
+                        value = "${uiState.cleanDaysPercentage}%",
+                        color = EmeraldLight
+                    )
+                    MetricMiniBlock(
+                        title = "Urges Beat",
+                        value = "${uiState.urgesConqueredCount} 💪",
+                        color = GoldAmber
+                    )
+                    MetricMiniBlock(
+                        title = "Avg Streak",
+                        value = "${uiState.averageStreakDays}d",
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    MetricMiniBlock(
+                        title = "Total Relapses",
+                        value = "${uiState.relapsesCount}",
+                        color = if (uiState.relapsesCount > 0) RoseSoft else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Interactive Monthly Clean-Day Calendar & Heatmap
+        StreakCalendarView(
+            startTimeMillis = settings.startTimeMillis,
+            relapses = relapses,
+            habitsMap = habitsMap
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Brain Rewiring & Dopamine Recovery Timeline
+        BrainRecoveryTimelineCard(
+            currentDays = uiState.days
+        )
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -256,7 +325,76 @@ fun ProgressScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Relapse History Section
+        // Urges Conquered Log Section
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Urges Conquered Log",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Surface(
+                shape = CircleShape,
+                color = EmeraldPrimary.copy(alpha = 0.2f)
+            ) {
+                Text(
+                    text = "${urges.size} Victories",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = EmeraldLight,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (urges.isEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(20.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FitnessCenter,
+                        contentDescription = null,
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Build Your Impulse Armor",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "When an urge strikes, resist it and tap \"I Beat an Urge! 💪\" on Home.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                urges.take(8).forEach { urge ->
+                    UrgeConqueredItem(urge = urge)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Relapse & Reset History Section
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -338,6 +476,97 @@ fun ProgressScreen(
 }
 
 @Composable
+private fun MetricMiniBlock(
+    title: String,
+    value: String,
+    color: androidx.compose.ui.graphics.Color
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black,
+            color = color
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontSize = 10.sp
+        )
+    }
+}
+
+@Composable
+private fun UrgeConqueredItem(urge: UrgeEvent) {
+    val dateStr = SimpleDateFormat("MMM d · hh:mm a", Locale.getDefault()).format(Date(urge.timestampMillis))
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = urge.trigger,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = EmeraldPrimary.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            text = urge.techniqueUsed,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = EmeraldLight,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = dateStr,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp
+                )
+                if (urge.note.isNotBlank()) {
+                    Text(
+                        text = "\"${urge.note}\"",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Text(
+                    text = "Lvl ${urge.intensity}/10",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = GoldAmber,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun TimeUnitBlock(value: String, label: String) {
     Surface(
         shape = RoundedCornerShape(12.dp),
@@ -378,12 +607,6 @@ private fun MilestoneCard(
     isExpanded: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = when {
-        isUnlocked -> EmeraldPrimary
-        isNext -> GoldAmber
-        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-    }
-
     Card(
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(

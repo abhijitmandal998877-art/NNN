@@ -8,6 +8,37 @@ data class RelapseEvent(
     val note: String = ""
 )
 
+data class UrgeEvent(
+    val id: String,
+    val timestampMillis: Long,
+    val intensity: Int = 5, // 1 to 10
+    val trigger: String = "Not specified",
+    val techniqueUsed: String = "Urge Surfing",
+    val note: String = ""
+)
+
+data class DailyHabitStatus(
+    val dateString: String, // "YYYY-MM-DD"
+    val coldShower: Boolean = false,
+    val workout: Boolean = false,
+    val meditation: Boolean = false,
+    val reading: Boolean = false,
+    val screenFreeBed: Boolean = false
+) {
+    val completedCount: Int
+        get() = listOf(coldShower, workout, meditation, reading, screenFreeBed).count { it }
+    val totalCount: Int = 5
+    val isAllCompleted: Boolean
+        get() = completedCount == totalCount
+}
+
+data class RecoveryJournalEntry(
+    val id: String,
+    val timestampMillis: Long,
+    val mood: String = "Strong 💪",
+    val note: String = ""
+)
+
 data class StreakSettings(
     val startTimeMillis: Long,
     val bestStreakMillis: Long,

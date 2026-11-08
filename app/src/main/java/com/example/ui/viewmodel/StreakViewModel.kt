@@ -4,10 +4,13 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.MotivationProvider
+import com.example.data.model.DailyHabitStatus
 import com.example.data.model.DailyQuote
 import com.example.data.model.Milestone
+import com.example.data.model.RecoveryJournalEntry
 import com.example.data.model.RelapseEvent
 import com.example.data.model.StreakSettings
+import com.example.data.model.UrgeEvent
 import com.example.data.repository.StreakRepository
 import com.example.notification.NotificationHelper
 import com.example.widget.StreakWidgetUpdater
@@ -30,6 +33,9 @@ data class LiveStreakUiState(
     val bestStreakDurationMillis: Long = 0,
     val totalDaysTracked: Long = 1,
     val relapsesCount: Int = 0,
+    val urgesConqueredCount: Int = 0,
+    val cleanDaysPercentage: Float = 100f,
+    val averageStreakDays: Float = 0f,
     val currentMilestone: Milestone = MotivationProvider.MILESTONES[0],
     val currentMilestoneProgress: Float = 0f,
     val daysToNextMilestone: Long = 1,
@@ -69,14 +75,18 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
     val settings: StateFlow<StreakSettings> = repository.settingsFlow
     val relapses: StateFlow<List<RelapseEvent>> = repository.relapsesFlow
     val pledges: StateFlow<Set<String>> = repository.pledgesFlow
-
+    val urges: StateFlow<List<UrgeEvent>> = repository.urgesFlow
+    val habits: StateFlow<Map<String, DailyHabitStatus>> = repository.habitsFlow
+    val habitsMap: StateFlow<Map<String, DailyHabitStatus>> get() = habits
+    val journal: StateFlow<List<RecoveryJournalEntry>> = repository.journalFlow
 
     private val streakCoreFlow = combine(
         settings,
         _currentTime,
         relapses,
-        pledges
-    ) { settingsVal, now, relapsesVal, pledgesVal ->
+        pledges,
+        urges
+    ) { settingsVal, now, relapsesVal, pledgesVal, urgesVal ->
         val duration = maxOf(0L, now - settingsVal.startTimeMillis)
         val days = TimeUnit.MILLISECONDS.toDays(duration)
         val hours = TimeUnit.MILLISECONDS.toHours(duration) % 24
@@ -110,6 +120,20 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
         val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date(now))
         val isPledged = pledgesVal.contains(todayStr)
 
+        val totalRelapses = relapsesVal.size
+        val cleanDaysPercentage = if (totalDaysTracked > 0) {
+            val cleanDays = maxOf(0L, totalDaysTracked - totalRelapses)
+            ((cleanDays.toFloat() / totalDaysTracked.toFloat()) * 100f).coerceIn(0f, 100f)
+        } else 100f
+
+        val averageStreakDays = if (totalRelapses > 0) {
+            val allDurations = relapsesVal.map { it.streakDurationMillis } + duration
+            val avgMillis = allDurations.average()
+            (avgMillis / (1000.0 * 60 * 60 * 24)).toFloat()
+        } else {
+            days.toFloat()
+        }
+
         LiveStreakUiState(
             days = days,
             hours = hours,
@@ -118,7 +142,10 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
             totalDurationMillis = duration,
             bestStreakDurationMillis = bestDuration,
             totalDaysTracked = totalDaysTracked,
-            relapsesCount = relapsesVal.size,
+            relapsesCount = totalRelapses,
+            urgesConqueredCount = urgesVal.size,
+            cleanDaysPercentage = cleanDaysPercentage,
+            averageStreakDays = averageStreakDays,
             currentMilestone = activeMilestone,
             currentMilestoneProgress = progress,
             daysToNextMilestone = daysToNext,
@@ -139,11 +166,9 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
                 delay(1000)
             }
         }
-        // Initialize daily quote based on epoch day
         val epochDay = System.currentTimeMillis() / (1000 * 60 * 60 * 24)
         _quoteIndex.value = (Math.abs(epochDay) % MotivationProvider.QUOTES.size).toInt()
 
-        // Initialize notification channels and schedule if enabled
         val app = getApplication<Application>()
         NotificationHelper.createNotificationChannels(app)
         if (repository.settingsFlow.value.dailyRemindersEnabled) {
@@ -180,6 +205,20 @@ class StreakViewModel(application: Application) : AndroidViewModel(application) 
         }
         _supportiveMessage.value = message
         StreakWidgetUpdater.updateAllWidgets(getApplication<Application>())
+    }
+
+    fun recordUrgeConquered(intensity: Int, trigger: String, technique: String, note: String) {
+        repository.recordUrgeConquered(intensity, trigger, technique, note)
+        _supportiveMessage.value = "Outstanding victory! You rode the wave and conquered the urge without breaking. You just rewired your neural pathways! 💪"
+        StreakWidgetUpdater.updateAllWidgets(getApplication<Application>())
+    }
+
+    fun toggleHabit(dateString: String, habitType: String) {
+        repository.toggleHabit(dateString, habitType)
+    }
+
+    fun addJournalEntry(mood: String, note: String) {
+        repository.addJournalEntry(mood, note)
     }
 
     fun dismissSupportiveMessage() {
